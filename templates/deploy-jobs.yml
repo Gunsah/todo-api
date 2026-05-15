@@ -2,16 +2,17 @@
 .ssh-deploy:
   stage: deploy
   image: alpine:latest
-  before_script:
-    - apk add --no-cache openssh-client sshpass
+  variables:
+    DEPLOY_HOST: "localhost"
   script:
-    - echo "SSH deploy to $DEPLOY_HOST (simulation)"
-    - echo "Restarting todo-api service..."
+    - apk add --no-cache openssh-client
+    - echo "Deploying to $DEPLOY_HOST via SSH..."
 
 .k8s-deploy:
   stage: deploy
   image: bitnami/kubectl:latest
+  variables:
+    K8S_NAMESPACE: "default"
+    K8S_DEPLOYMENT: "app"
   script:
-    - echo "K8s deploy to namespace $K8S_NAMESPACE"
-    - kubectl set image deployment/$K8S_DEPLOYMENT todo-api=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA --namespace=$K8S_NAMESPACE
-    - echo "Rollout status for $K8S_DEPLOYMENT..."
+    - kubectl set image deployment/$K8S_DEPLOYMENT app=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -n $K8S_NAMESPACE

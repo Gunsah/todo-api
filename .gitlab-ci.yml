@@ -1,4 +1,3 @@
----
 default:
   interruptible: true
 
@@ -17,9 +16,10 @@ stages:
   - deploy
 
 include:
-  - local: templates/python-jobs.yml
-  - local: templates/deploy-jobs.yml
+  - local: 'templates/python-jobs.yml'
+  - local: 'templates/deploy-jobs.yml'
 
+#Переиспользование и матрица
 lint:
   extends: .lint-job
   variables:
@@ -40,35 +40,36 @@ test:integration:
 
 build:image:
   extends: .docker-build-job
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG
   artifacts:
     paths:
       - dist/image.tar
-    expire_in: 1 day
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
 
 deploy:staging:
   extends: .ssh-deploy
   environment:
     name: staging
   variables:
-    DEPLOY_HOST: staging.example.com
+    DEPLOY_HOST: "staging.example.com"
+  allow_failure: true
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-  allow_failure: true
 
 deploy:production:
   extends: .k8s-deploy
   environment:
     name: production
   variables:
-    K8S_DEPLOYMENT: todo-api
-    K8S_NAMESPACE: production
+    K8S_DEPLOYMENT: "todo-api"
+    K8S_NAMESPACE: "production"
+  when: manual
   rules:
     - if: $CI_COMMIT_TAG
-      when: manual
 
+#SBOM
 sbom:image:
   stage: sbom
   image: docker:26
@@ -83,10 +84,9 @@ sbom:image:
     - docker load -i dist/image.tar
   script:
     - mkdir -p sbom
-    - |
-      IMAGE_TAG=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
-      syft scan docker:$IMAGE_TAG -o cyclonedx-json > sbom/image.cdx.json
-      syft scan docker:$IMAGE_TAG -o spdx-json > sbom/image.spdx.json
+    - export IMAGE=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - syft $IMAGE -o cyclonedx-json > sbom/image.cdx.json
+    - syft $IMAGE -o spdx-json > sbom/image.spdx.json
   artifacts:
     paths:
       - sbom/image.cdx.json
